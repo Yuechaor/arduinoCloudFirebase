@@ -1,0 +1,9 @@
+<div style="padding: 50px">
+    <h3>Search by Date</h3>
+    <input type="date"
+    class="form-control"
+    (input)="getSearchDate($event)">
+</div>
+<div class="alert alert-danger" role="alert" *ngIf="dataNotFound"><h4>Data Does Not Exist on {{date}} ! Try Search Another Date</h4></div>
+<div class="alert alert-success" role="alert" *ngIf="dataFound"><h4>History found on {{date}} ! Check the Details below</h4></div>
+<div #chart2 style="position: relative; height:65vh; width:65vw"></div>
