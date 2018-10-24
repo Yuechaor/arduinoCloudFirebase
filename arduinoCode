@@ -1,0 +1,127 @@
+// Arduino libraries
+#include <Bridge.h>
+#include <Console.h>
+#include <Process.h>
+#include <DHT.h>
+
+
+#include "DHT.h"
+
+// Literals
+// #define DEBUG
+#define DHT_PIN 2
+#define DHT_TYPE DHT22   // DHT 22  (AM2302), AM2321
+
+// Constants
+//const double  UPDATE_RATE = 1800000; // 30min
+//const double  UPDATE_RATE = 3600000; // 1 hour
+const int  UPDATE_RATE = 10000; // 10s
+
+
+// Leverage Yun Linux (curl)
+Process process;
+
+// DHT instance
+DHT dht(DHT_PIN, DHT_TYPE);
+
+// Setup
+void setup() 
+{  
+  // Bridge communication
+  Bridge.begin();
+  Serial.begin(9600);
+  Serial.println("DHTxx test!");
+
+  dht.begin();
+}
+
+// Loop
+void loop() 
+{
+  //Read humidity 
+  double h = dht.readHumidity();
+  // Read temperature as Celsius (the default)
+  double t = dht.readTemperature();
+  // Read temperature as Fahrenheit (isFahrenheit = true)
+  double f = dht.readTemperature(true);
+ 
+
+  // Compute heat index in Fahrenheit (the default)
+  float hif = dht.computeHeatIndex(f, h);
+  // Compute heat index in Celsius (isFahreheit = false)
+  float hic = dht.computeHeatIndex(t, h, false);
+
+  Serial.print("Humidity: ");
+  Serial.print(h);
+  Serial.print(" %\t");
+  Serial.print("Temperature: ");
+  Serial.print(t);
+  Serial.print(" *C ");
+
+
+// Update value on Firebase
+      request(t,h);
+
+  // Rinse, wash, and repeat
+  delay( UPDATE_RATE );
+}
+String getTimeStamp() {
+  String result;
+  Process time;
+  time.begin("date");
+  time.addParameter("+%T");
+  //time.addParameter("+%F %T");   
+  //time.runShellCommand("echo `date +%F` `date +%T");
+  time.run(); 
+
+  while(time.available()>0) {
+    char c = time.read();
+    if(c != '\n')
+      result += c;
+  }
+
+  return result;
+}  
+String getDateStamp() {
+  String result;
+  Process time;
+  time.begin("date");
+  time.addParameter("+%F");   
+  time.run(); 
+
+  while(time.available()>0) {
+    char c = time.read();
+    if(c != '\n')
+      result += c;
+  }
+
+  return result;
+}  
+
+// Send the data 
+void request( double temperature, double humi)
+{
+  // Buffer for string conversion
+  // The sprintf function does not like doubles
+  char temp[10];
+  char humidity[10];
+  // Temperature as character string
+  dtostrf( temperature, 3, 2, temp );
+//  Serial.print(temp);
+  // Humidity as character string
+  dtostrf( humi, 3, 2, humidity );
+//  Serial.print(timeString);  
+//  minutes = timeString.toInt();
+//  Serial.print(minutes);
+
+    String timer; 
+    String date;
+    timer += getTimeStamp();
+    date += getDateStamp();
+    Serial.println(date);
+    Serial.println(timer); 
+
+  Process p;  
+  p.runShellCommand("curl -k -X POST https://cloudweatherstation-b0942.firebaseio.com/data.json -d '{\"temp\":\""+ String(temp) +"\",\"huminity\":\""+ String(humidity) +"\",\"date\":\""+ String(date) +"\",\"time\":\""+ String(timer) +"\"}'"); 
+  Serial.println("Data sent");
+}
